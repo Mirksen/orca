@@ -34,6 +34,7 @@ import { PlacementLoadBand } from './placement-load-band.js'
 import { createRelayReadiness } from './relay-readiness.js'
 import { createRelayTokenVerifier, readBearer } from './relay-token-verifier.js'
 import { closeRelayWebSocket } from './relay-websocket-close.js'
+import { ShadowDirectoryCompare } from './shadow-directory-compare.js'
 import { startShadowSeatPoller } from './shadow-seat-directory.js'
 import { ProcessQueuedByteBudget } from './splice-forwarder.js'
 
@@ -149,6 +150,9 @@ export function createRelayServer(
   const shadowSeatPoller = startShadowSeatPoller(config, {
     listCells: () => assignments.seatFeedCells()
   })
+  const shadowCompare = shadowSeatPoller
+    ? new ShadowDirectoryCompare(shadowSeatPoller.directory, options.now)
+    : undefined
   const queuedBytes = new ProcessQueuedByteBudget()
   const sessions = new HostSessionRegistry(
     config,
@@ -198,6 +202,11 @@ export function createRelayServer(
       observability.recordAdmissionServiceMs?.(lane, durationMs),
     recordAssignmentUnavailable: (cause) => observability.recordAssignmentUnavailable?.(cause),
     recordRegionRequest: (region) => observability.recordRegionRequest?.(region),
+    compareShadowSeats: shadowCompare
+      ? (route, identity, answer) => {
+          shadowCompare.compare(route, identity, answer)
+        }
+      : undefined,
     recordRegionSelection: (input) => observability.recordRegionSelection?.(input)
   })
   const observedFetch: typeof app.fetch = async (...args) => {
