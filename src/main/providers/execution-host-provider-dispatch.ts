@@ -19,7 +19,7 @@
  *
  *   - `local` git and filesystem work takes per-worktree execution options (`wslDistro`,
  *     `sharedLinkPaths`, admission tier). A registered stateless provider would silently drop WSL
- *     routing, so the local git route carries a factory that is built per call.
+ *     routing, so the local git and filesystem routes carry a factory that is built per call.
  *   - `runtime:<env>` is not executed in this process *at all*. It is forwarded over the
  *     environment's transport (`runtimeEnvironments:call`) and the receiving server normalizes it to
  *     its own `local`. A repo row on a runtime host carries the server's *nested* SSH target in
@@ -44,6 +44,7 @@ import {
   type LOCAL_EXECUTION_HOST_ID,
   type ParsedExecutionHost
 } from '../../shared/execution-host'
+import { createLocalFilesystemProvider } from './local-filesystem-provider'
 import { createLocalGitProvider } from './local-git-provider'
 import { getSshGitProvider, SSH_GIT_PROVIDER_UNAVAILABLE_MESSAGE } from './ssh-git-dispatch'
 import type { SshGitProvider } from './ssh-git-provider'
@@ -75,6 +76,8 @@ export class ExecutionHostNotDispatchableError extends Error {
 type LocalRoute = { kind: 'local'; hostId: typeof LOCAL_EXECUTION_HOST_ID }
 /** Local git needs per-worktree options (WSL distro, shared links), so the route carries a factory. */
 type LocalGitRoute = LocalRoute & { createProvider: typeof createLocalGitProvider }
+/** Local file work authorizes against the caller's store, so the route carries a factory too. */
+type LocalFilesystemRoute = LocalRoute & { createProvider: typeof createLocalFilesystemProvider }
 type RuntimeRoute = { kind: 'runtime'; hostId: `runtime:${string}`; environmentId: string }
 type SshRoute<TProvider> = {
   kind: 'ssh'
@@ -87,7 +90,10 @@ type SshRoute<TProvider> = {
 // The SSH table stores `SshGitProvider`; narrowing the route to `IGitProvider` would drop the
 // remote-only methods (commit-message plans, push-target materialization) that callers need.
 export type ExecutionHostGitRoute = LocalGitRoute | RuntimeRoute | SshRoute<SshGitProvider>
-export type ExecutionHostFilesystemRoute = LocalRoute | RuntimeRoute | SshRoute<IFilesystemProvider>
+export type ExecutionHostFilesystemRoute =
+  | LocalFilesystemRoute
+  | RuntimeRoute
+  | SshRoute<IFilesystemProvider>
 
 // Takes an unvalidated string rather than `ExecutionHostId`: validating is the point, and host
 // ids also arrive from persistence and IPC where the compiler cannot vouch for them.
@@ -122,7 +128,7 @@ export function resolveFilesystemRouteForHost(
   const parsed = parseRoutableHost(hostId)
   switch (parsed.kind) {
     case 'local':
-      return { kind: 'local', hostId: parsed.id }
+      return { kind: 'local', hostId: parsed.id, createProvider: createLocalFilesystemProvider }
     case 'ssh':
       return {
         kind: 'ssh',
