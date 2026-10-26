@@ -9,6 +9,7 @@ import type { BrowserFindTarget } from '../../shared/browser-find-source'
 import type { BrowserPageTabShortcut } from '../../shared/browser-page-command-target'
 import type { ResolveRenderer } from './browser-guest-renderer-target'
 import { matchesGuestTabShortcut } from './browser-guest-tab-shortcut'
+import { openLatestNotification } from '../ipc/openable-notifications'
 
 export type ShouldForwardDictationShortcut = () => boolean
 export type IsMobileEmulatorEnabled = () => boolean
@@ -75,6 +76,12 @@ export function forwardGuestShortcutInput(
     event.preventDefault()
     const renderer = resolveRenderer(browserTabId)
     renderer?.send('ui:toggleFloatingTerminal')
+    return true
+  }
+
+  // Nothing to open leaves the chord to the page.
+  if (action?.type === 'openLatestNotification' && openLatestNotification()) {
+    event.preventDefault()
     return true
   }
 

@@ -18,6 +18,7 @@ import {
   waitForNotificationDisplay
 } from './native-notification-lifecycle'
 import { recordNotificationDeliveryOutcome } from './notification-permission-probe'
+import { registerOpenableNotification } from './openable-notifications'
 import { getTrustedUIRendererWindow } from './ui'
 
 export function deliverNativeNotification(
@@ -43,6 +44,7 @@ export function deliverNativeNotification(
   // Retain the notification and click handler through display lifetime.
   let clickHandler: (() => void) | null = null
   let failedHandler: ((_event: unknown, error?: string) => void) | null = null
+  let unregisterOpenable: (() => void) | null = null
   const entryForId: { notification: Notification; release: () => void } | null = args.notificationId
     ? { notification, release: () => {} }
     : null
@@ -67,6 +69,7 @@ export function deliverNativeNotification(
   failedHandler = (_event, error) => {
     // Release immediately on macOS delivery/signing failure instead of waiting for retention expiry.
     logNativeNotificationFailure(args.source, error)
+    unregisterOpenable?.()
     // Feed permission-card fallback evidence.
     recordNotificationDeliveryOutcome('failed')
     release()
@@ -80,8 +83,7 @@ export function deliverNativeNotification(
   // Repo-less folder/floating workspaces still bind clicks through their pane target.
   const repoId = worktreeId?.includes('::') ? getRepoIdFromWorktreeId(worktreeId) : null
   if (worktreeId && (repoId !== null || paneTarget)) {
-    clickHandler = () => {
-      release()
+    const revealTarget = (): void => {
       const win = getTrustedUIRendererWindow()
       if (!win || win.isDestroyed()) {
         return
@@ -114,7 +116,18 @@ export function deliverNativeNotification(
         scrollToBottomIfOutputSinceLastView: true
       })
     }
+    clickHandler = () => {
+      unregisterOpenable?.()
+      release()
+      revealTarget()
+    }
     notification.on('click', clickHandler)
+    // The open-latest shortcut acts as a click and also removes the banner from the OS list.
+    unregisterOpenable = registerOpenableNotification(() => {
+      notification.close()
+      release()
+      revealTarget()
+    }, args.notificationId)
   }
 
   const displayConfirmation = args.requireDisplayConfirmation
@@ -125,6 +138,7 @@ export function deliverNativeNotification(
   if (displayConfirmation) {
     return displayConfirmation.then((displayed) => {
       if (!displayed) {
+        unregisterOpenable?.()
         release()
         return { delivered: false, reason: 'not-displayed' }
       }

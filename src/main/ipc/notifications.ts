@@ -15,6 +15,7 @@ import { setTrayAttention } from '../tray/system-tray'
 import { isMainWindowVisible } from '../window/main-window-visibility'
 import { activeNotificationsById } from './native-notification-lifecycle'
 import { deliverNativeNotification } from './native-notification-delivery'
+import { forgetOpenableNotifications } from './openable-notifications'
 import { removeReadMacosNotifications } from './macos-notification-center'
 import { createNotificationDeliveryService } from '../notifications/notification-delivery-service'
 import { createAnnouncedNotificationRegistry } from '../notifications/announced-notification-registry'
@@ -130,6 +131,7 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
           }
         }
       }
+      forgetOpenableNotifications(uniqueIds)
       let dismissed = 0
       for (const id of uniqueIds) {
         const entry = activeNotificationsById.get(id)

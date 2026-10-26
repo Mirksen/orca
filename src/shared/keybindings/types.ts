@@ -40,6 +40,7 @@ export type KeybindingActionId =
   | 'voice.dictation'
   | 'view.tasks'
   | 'dashboard.toggle'
+  | 'notifications.openLatest'
   | 'sidebar.left.toggle'
   | 'sidebar.right.toggle'
   | 'sidebar.explorer.toggle'
