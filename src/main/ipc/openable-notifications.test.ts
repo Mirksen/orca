@@ -47,8 +47,8 @@ describe('openable notifications', () => {
   it('replaces an earlier notification with the same id', () => {
     const first = vi.fn()
     const replacement = vi.fn()
-    registerOpenableNotification(first, 'agent-1')
-    registerOpenableNotification(replacement, 'agent-1')
+    registerOpenableNotification(first, { id: 'agent-1' })
+    registerOpenableNotification(replacement, { id: 'agent-1' })
 
     expect(openLatestNotification()).toBe(true)
     expect(replacement).toHaveBeenCalledTimes(1)
@@ -59,8 +59,8 @@ describe('openable notifications', () => {
   it('forgets notifications retired as read by id', () => {
     const unread = vi.fn()
     const read = vi.fn()
-    registerOpenableNotification(unread, 'unread')
-    registerOpenableNotification(read, 'read')
+    registerOpenableNotification(unread, { id: 'unread' })
+    registerOpenableNotification(read, { id: 'read' })
 
     forgetOpenableNotifications(['read'])
 

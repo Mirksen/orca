@@ -149,6 +149,23 @@ describe('open latest notification', () => {
     expect(focusedLeafIds(send)).toEqual([OLDER_LEAF])
   })
 
+  it('forgets a terminal bell once its pane is read, though bells carry no notification id', async () => {
+    const send = registerWithMainWindow()
+    await dispatchFor(OLDER_LEAF, 'older')
+    await getDispatchHandler()(
+      {},
+      { source: 'terminal-bell', worktreeId: NEWER_WORKTREE, paneKey: `tab-1:${NEWER_LEAF}` }
+    )
+    vi.advanceTimersByTime(10 * 60 * 1000)
+
+    // Reading a pane dismisses by pane key alone, as the renderer's attention removal does.
+    getDismissHandler()({}, [], [`tab-1:${NEWER_LEAF}`])
+
+    expect(openLatestNotification()).toBe(true)
+    expect(focusedLeafIds(send)).toEqual([OLDER_LEAF])
+    expect(openLatestNotification()).toBe(false)
+  })
+
   it('does not reopen a notification the user already clicked', async () => {
     const send = registerWithMainWindow()
     await dispatchFor(NEWER_LEAF, 'clicked')

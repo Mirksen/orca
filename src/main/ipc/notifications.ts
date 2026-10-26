@@ -131,7 +131,12 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
           }
         }
       }
-      forgetOpenableNotifications(uniqueIds)
+      forgetOpenableNotifications(
+        uniqueIds,
+        (Array.isArray(paneKeys) ? paneKeys : []).filter(
+          (paneKey): paneKey is string => typeof paneKey === 'string'
+        )
+      )
       let dismissed = 0
       for (const id of uniqueIds) {
         const entry = activeNotificationsById.get(id)

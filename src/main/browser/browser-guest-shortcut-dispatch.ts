@@ -9,7 +9,7 @@ import type { BrowserFindTarget } from '../../shared/browser-find-source'
 import type { BrowserPageTabShortcut } from '../../shared/browser-page-command-target'
 import type { ResolveRenderer } from './browser-guest-renderer-target'
 import { matchesGuestTabShortcut } from './browser-guest-tab-shortcut'
-import { openLatestNotification } from '../ipc/openable-notifications'
+import { hasOpenableNotification, openLatestNotification } from '../ipc/openable-notifications'
 
 export type ShouldForwardDictationShortcut = () => boolean
 export type IsMobileEmulatorEnabled = () => boolean
@@ -51,6 +51,8 @@ export function forwardGuestShortcutInput(
     if (
       (action?.type === 'dictationKeyDown' && shouldForwardDictationShortcut?.()) ||
       action?.type === 'deleteCurrentWorkspace' ||
+      // Held open-latest opens once; repeats stay with Orca while something is left to open.
+      (action?.type === 'openLatestNotification' && hasOpenableNotification()) ||
       // Why: Orca claims a held tab chord on every repeat but acts once, so repeats never reach the page.
       matchesGuestTabShortcut(
         input,

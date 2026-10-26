@@ -123,11 +123,14 @@ export function deliverNativeNotification(
     }
     notification.on('click', clickHandler)
     // The open-latest shortcut acts as a click and also removes the banner from the OS list.
-    unregisterOpenable = registerOpenableNotification(() => {
-      notification.close()
-      release()
-      revealTarget()
-    }, args.notificationId)
+    unregisterOpenable = registerOpenableNotification(
+      () => {
+        notification.close()
+        release()
+        revealTarget()
+      },
+      { id: args.notificationId, paneKey: args.paneKey }
+    )
   }
 
   const displayConfirmation = args.requireDisplayConfirmation

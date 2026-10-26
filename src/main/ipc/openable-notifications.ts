@@ -2,16 +2,20 @@
 // shortcut still reaches an agent that has waited longer; cleared on open, read, or replacement.
 const MAX_OPENABLE_NOTIFICATIONS = 50
 
-type OpenableNotification = { id?: string; open: () => void }
+type OpenableNotificationKey = { id?: string; paneKey?: string }
+type OpenableNotification = OpenableNotificationKey & { open: () => void }
 
 const openableNotifications: OpenableNotification[] = []
 
 /** Register a shown notification's open route; the returned function unregisters it. */
-export function registerOpenableNotification(open: () => void, id?: string): () => void {
+export function registerOpenableNotification(
+  open: () => void,
+  { id, paneKey }: OpenableNotificationKey = {}
+): () => void {
   if (id) {
     forgetOpenableNotifications([id])
   }
-  const entry: OpenableNotification = { id, open }
+  const entry: OpenableNotification = { id, paneKey, open }
   openableNotifications.push(entry)
   if (openableNotifications.length > MAX_OPENABLE_NOTIFICATIONS) {
     openableNotifications.shift()
@@ -24,12 +28,17 @@ export function registerOpenableNotification(open: () => void, id?: string): () 
   }
 }
 
-/** Drop notifications Orca retired as read, so the shortcut skips work the user already saw. */
-export function forgetOpenableNotifications(ids: Iterable<string>): void {
-  const retired = new Set(ids)
+/** Drop notifications Orca retired as read, so the shortcut skips work the user already saw.
+ * Pane reads also retire id-less notifications such as terminal bells. */
+export function forgetOpenableNotifications(
+  ids: Iterable<string>,
+  paneKeys: Iterable<string> = []
+): void {
+  const retiredIds = new Set(ids)
+  const readPaneKeys = new Set(paneKeys)
   for (let index = openableNotifications.length - 1; index >= 0; index -= 1) {
-    const id = openableNotifications[index].id
-    if (id && retired.has(id)) {
+    const { id, paneKey } = openableNotifications[index]
+    if ((id && retiredIds.has(id)) || (paneKey && readPaneKeys.has(paneKey))) {
       openableNotifications.splice(index, 1)
     }
   }
