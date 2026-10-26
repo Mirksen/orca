@@ -69,6 +69,20 @@ describe('openable notifications', () => {
     expect(read).not.toHaveBeenCalled()
   })
 
+  it('retires only id-less notifications on a pane read and leaves ones with an id to their ids', () => {
+    const positioned = vi.fn()
+    const bell = vi.fn()
+    registerOpenableNotification(positioned, { id: 'agent-attention:B', paneKey: 'tab-1:leaf' })
+    registerOpenableNotification(bell, { paneKey: 'tab-1:leaf' })
+
+    // A read before B's journal boundary retires no id, so B stays openable.
+    forgetOpenableNotifications([], ['tab-1:leaf'])
+
+    expect(openLatestNotification()).toBe(true)
+    expect(positioned).toHaveBeenCalledTimes(1)
+    expect(bell).not.toHaveBeenCalled()
+  })
+
   it('keeps only the 50 newest notifications', () => {
     const opens = Array.from({ length: 51 }, () => vi.fn())
     for (const open of opens) {

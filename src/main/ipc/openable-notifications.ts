@@ -29,7 +29,8 @@ export function registerOpenableNotification(
 }
 
 /** Drop notifications Orca retired as read, so the shortcut skips work the user already saw.
- * Pane reads also retire id-less notifications such as terminal bells. */
+ * Pane reads retire only id-less notifications such as terminal bells; notifications with an id
+ * follow the ids Orca retires, so positioned alerts past a read boundary stay openable. */
 export function forgetOpenableNotifications(
   ids: Iterable<string>,
   paneKeys: Iterable<string> = []
@@ -38,7 +39,7 @@ export function forgetOpenableNotifications(
   const readPaneKeys = new Set(paneKeys)
   for (let index = openableNotifications.length - 1; index >= 0; index -= 1) {
     const { id, paneKey } = openableNotifications[index]
-    if ((id && retiredIds.has(id)) || (paneKey && readPaneKeys.has(paneKey))) {
+    if (id ? retiredIds.has(id) : paneKey !== undefined && readPaneKeys.has(paneKey)) {
       openableNotifications.splice(index, 1)
     }
   }

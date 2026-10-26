@@ -18,7 +18,7 @@ import {
   waitForNotificationDisplay
 } from './native-notification-lifecycle'
 import { recordNotificationDeliveryOutcome } from './notification-permission-probe'
-import { registerOpenableNotification } from './openable-notifications'
+import { forgetOpenableNotifications, registerOpenableNotification } from './openable-notifications'
 import { getTrustedUIRendererWindow } from './ui'
 
 export function deliverNativeNotification(
@@ -39,6 +39,8 @@ export function deliverNativeNotification(
       previous.notification.close()
       previous.release()
     }
+    // A replacement without a reveal target registers no route, so retire the old one here.
+    forgetOpenableNotifications([args.notificationId])
   }
 
   // Retain the notification and click handler through display lifetime.

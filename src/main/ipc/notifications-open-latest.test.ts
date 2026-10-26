@@ -166,6 +166,17 @@ describe('open latest notification', () => {
     expect(openLatestNotification()).toBe(false)
   })
 
+  it('forgets a replaced notification even when its replacement has no click target', async () => {
+    registerWithMainWindow()
+    await dispatchFor(NEWER_LEAF, 'replaced')
+    // Step past the burst cooldown so the replacement is delivered.
+    vi.advanceTimersByTime(10_000)
+
+    await getDispatchHandler()({}, { source: 'agent-task-complete', notificationId: 'replaced' })
+
+    expect(hasOpenableNotification()).toBe(false)
+  })
+
   it('does not reopen a notification the user already clicked', async () => {
     const send = registerWithMainWindow()
     await dispatchFor(NEWER_LEAF, 'clicked')
