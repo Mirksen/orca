@@ -166,6 +166,19 @@ describe('open latest notification', () => {
     expect(openLatestNotification()).toBe(false)
   })
 
+  it('forgets every notification of a read pane, even ids the announced registry already evicted', async () => {
+    registerWithMainWindow()
+    // More completions on one pane than the announced registry keeps ids for (20).
+    for (let turn = 0; turn < 25; turn += 1) {
+      await dispatchFor(NEWER_LEAF, `turn-${turn}`)
+      vi.advanceTimersByTime(10_000)
+    }
+
+    getDismissHandler()({}, [], [`tab-1:${NEWER_LEAF}`])
+
+    expect(hasOpenableNotification()).toBe(false)
+  })
+
   it('forgets a replaced notification even when its replacement has no click target', async () => {
     registerWithMainWindow()
     await dispatchFor(NEWER_LEAF, 'replaced')

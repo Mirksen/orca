@@ -131,7 +131,7 @@ export function deliverNativeNotification(
         release()
         revealTarget()
       },
-      { id: args.notificationId, paneKey: args.paneKey }
+      { id: args.notificationId, paneKey: args.paneKey, origin: args.structuredOrigin }
     )
   }
 

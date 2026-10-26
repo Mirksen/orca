@@ -1,8 +1,20 @@
 // Click routes of shown notifications, newest last. Kept past the banner's retention window so the
 // shortcut still reaches an agent that has waited longer; cleared on open, read, or replacement.
+import {
+  attentionOriginWasRead,
+  type StructuredAttentionOrigin,
+  type StructuredAttentionRead
+} from '../../shared/agent-session-attention'
+
 const MAX_OPENABLE_NOTIFICATIONS = 50
 
-type OpenableNotificationKey = { id?: string; paneKey?: string }
+type OpenableNotificationKey = {
+  id?: string
+  paneKey?: string
+  /** Journal position of a structured alert; only a read covering it retires the route. */
+  origin?: StructuredAttentionOrigin
+}
+export type OpenableNotificationPaneRead = { paneKey: string; read?: StructuredAttentionRead }
 type OpenableNotification = OpenableNotificationKey & { open: () => void }
 
 const openableNotifications: OpenableNotification[] = []
@@ -10,12 +22,12 @@ const openableNotifications: OpenableNotification[] = []
 /** Register a shown notification's open route; the returned function unregisters it. */
 export function registerOpenableNotification(
   open: () => void,
-  { id, paneKey }: OpenableNotificationKey = {}
+  { id, paneKey, origin }: OpenableNotificationKey = {}
 ): () => void {
   if (id) {
     forgetOpenableNotifications([id])
   }
-  const entry: OpenableNotification = { id, paneKey, open }
+  const entry: OpenableNotification = { id, paneKey, origin, open }
   openableNotifications.push(entry)
   if (openableNotifications.length > MAX_OPENABLE_NOTIFICATIONS) {
     openableNotifications.shift()
@@ -29,17 +41,23 @@ export function registerOpenableNotification(
 }
 
 /** Drop notifications Orca retired as read, so the shortcut skips work the user already saw.
- * Pane reads retire only id-less notifications such as terminal bells; notifications with an id
- * follow the ids Orca retires, so positioned alerts past a read boundary stay openable. */
+ * A pane read retires that pane's unpositioned notifications, including id-less terminal bells,
+ * and positioned alerts only when the read covers their journal position. Mirroring the announced
+ * registry's rule here keeps routes retirable after that registry has evicted their ids. */
 export function forgetOpenableNotifications(
   ids: Iterable<string>,
-  paneKeys: Iterable<string> = []
+  paneReads: readonly OpenableNotificationPaneRead[] = []
 ): void {
   const retiredIds = new Set(ids)
-  const readPaneKeys = new Set(paneKeys)
+  const wasRead = ({ id, paneKey, origin }: OpenableNotification): boolean =>
+    (id !== undefined && retiredIds.has(id)) ||
+    paneReads.some(
+      ({ paneKey: readPaneKey, read }) =>
+        readPaneKey === paneKey &&
+        (origin === undefined || (read !== undefined && attentionOriginWasRead(origin, read)))
+    )
   for (let index = openableNotifications.length - 1; index >= 0; index -= 1) {
-    const { id, paneKey } = openableNotifications[index]
-    if (id ? retiredIds.has(id) : paneKey !== undefined && readPaneKeys.has(paneKey)) {
+    if (wasRead(openableNotifications[index])) {
       openableNotifications.splice(index, 1)
     }
   }

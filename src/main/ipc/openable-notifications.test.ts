@@ -5,6 +5,7 @@ import {
   openLatestNotification,
   registerOpenableNotification
 } from './openable-notifications'
+import type { StructuredAttentionOrigin } from '../../shared/agent-session-attention'
 
 afterEach(() => {
   while (openLatestNotification()) {
@@ -69,17 +70,42 @@ describe('openable notifications', () => {
     expect(read).not.toHaveBeenCalled()
   })
 
-  it('retires only id-less notifications on a pane read and leaves ones with an id to their ids', () => {
-    const positioned = vi.fn()
+  it("retires a read pane's unpositioned notifications but keeps positioned alerts past the read", () => {
+    const origin = (sequence: number): StructuredAttentionOrigin => ({
+      scope: {
+        executionHostId: 'runtime:remote-host',
+        wslDistro: null,
+        workspaceId: 'remote-folder',
+        workspaceKind: 'folder'
+      },
+      sessionId: 'session-1',
+      cause: { kind: 'prompt', promptId: `prompt-${sequence}` },
+      journalCursor: { epoch: 'journal', sequence }
+    })
+    const covered = vi.fn()
+    const pastRead = vi.fn()
+    const completion = vi.fn()
     const bell = vi.fn()
-    registerOpenableNotification(positioned, { id: 'agent-attention:B', paneKey: 'tab-1:leaf' })
+    registerOpenableNotification(covered, { id: 'A', paneKey: 'tab-1:leaf', origin: origin(1) })
+    registerOpenableNotification(pastRead, { id: 'B', paneKey: 'tab-1:leaf', origin: origin(2) })
+    registerOpenableNotification(completion, { id: 'done', paneKey: 'tab-1:leaf' })
     registerOpenableNotification(bell, { paneKey: 'tab-1:leaf' })
 
-    // A read before B's journal boundary retires no id, so B stays openable.
-    forgetOpenableNotifications([], ['tab-1:leaf'])
+    forgetOpenableNotifications(
+      [],
+      [
+        {
+          paneKey: 'tab-1:leaf',
+          read: { sessionId: 'session-1', observedCursor: { epoch: 'journal', sequence: 1 } }
+        }
+      ]
+    )
 
     expect(openLatestNotification()).toBe(true)
-    expect(positioned).toHaveBeenCalledTimes(1)
+    expect(openLatestNotification()).toBe(false)
+    expect(pastRead).toHaveBeenCalledTimes(1)
+    expect(covered).not.toHaveBeenCalled()
+    expect(completion).not.toHaveBeenCalled()
     expect(bell).not.toHaveBeenCalled()
   })
 
